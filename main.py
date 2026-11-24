@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, File, UploadFile
 from pydantic import BaseModel, Field
 
 DB_PATH = Path(os.getenv("DB_PATH", "scans.db"))
@@ -79,27 +79,46 @@ def me(tenant=Depends(current_tenant)):
     return {"tenant": tenant["id"], "plan": tenant["plan"], "limit": tenant["limit"], "used": used}
 
 @app.post("/scans", status_code=201)
-def create_scan(payload: ScanRequest, tenant=Depends(current_tenant)):
+async def create_scan(file: UploadFile = File(...), tenant=Depends(current_tenant)):
+    content = await file.read()
+
+    if len(content) > 64 * 1024:
+        raise HTTPException(413, "File too large (max 64 KB)")
+
     try:
-        document = yaml.safe_load(payload.content)
-    except yaml.YAMLError:
+        document = yaml.safe_load(content.decode("utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError):
         raise HTTPException(400, "Invalid YAML")
+
     if not isinstance(document, dict):
         raise HTTPException(400, "Expected a YAML mapping")
+
     findings = analyze(document)
     created_at = datetime.now(timezone.utc).isoformat()
 
     with closing(connect()) as db, db:
         db.execute("BEGIN IMMEDIATE")
-        used = db.execute("SELECT COUNT(*) FROM scans WHERE tenant_id = ?", (tenant["id"],)).fetchone()[0]
+        used = db.execute(
+            "SELECT COUNT(*) FROM scans WHERE tenant_id = ?",
+            (tenant["id"],)
+        ).fetchone()[0]
+
         if used >= tenant["limit"]:
             raise HTTPException(409, "PLAN_LIMIT_REACHED")
+
         cursor = db.execute(
             "INSERT INTO scans (tenant_id, filename, findings, created_at) VALUES (?, ?, ?, ?)",
-            (tenant["id"], payload.filename, json.dumps(findings), created_at),
+            (tenant["id"], file.filename, json.dumps(findings), created_at),
         )
         scan_id = cursor.lastrowid
-    return {"id": scan_id, "tenant": tenant["id"], "filename": payload.filename, "findings": findings, "created_at": created_at}
+
+    return {
+        "id": scan_id,
+        "tenant": tenant["id"],
+        "filename": file.filename,
+        "findings": findings,
+        "created_at": created_at
+    }
 
 @app.get("/scans")
 def list_scans(tenant=Depends(current_tenant)):
