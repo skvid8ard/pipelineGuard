@@ -120,3 +120,13 @@ def get_scan(scan_id: int, tenant=Depends(current_tenant)):
     if row is None:
         raise HTTPException(404, "Scan not found")
     return serialize(row)
+
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+with closing(connect()) as db, db:
+    db.execute("""CREATE TABLE IF NOT EXISTS scans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        findings TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )""")
