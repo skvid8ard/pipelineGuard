@@ -72,3 +72,9 @@ def serialize(row):
     result = dict(row)
     result["findings"] = json.loads(result["findings"])
     return result
+
+@app.get("/me")
+def me(tenant=Depends(current_tenant)):
+    with closing(connect()) as db:
+        used = db.execute("SELECT COUNT(*) FROM scans WHERE tenant_id = ?", (tenant["id"],)).fetchone()[0]
+    return {"tenant": tenant["id"], "plan": tenant["plan"], "limit": tenant["limit"], "used": used}
