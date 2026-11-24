@@ -100,3 +100,23 @@ def create_scan(payload: ScanRequest, tenant=Depends(current_tenant)):
         )
         scan_id = cursor.lastrowid
     return {"id": scan_id, "tenant": tenant["id"], "filename": payload.filename, "findings": findings, "created_at": created_at}
+
+@app.get("/scans")
+def list_scans(tenant=Depends(current_tenant)):
+    with closing(connect()) as db:
+        rows = db.execute(
+            "SELECT * FROM scans WHERE tenant_id = ? ORDER BY id", (tenant["id"],)
+        ).fetchall()
+    return [serialize(row) for row in rows]
+
+
+@app.get("/scans/{scan_id}")
+def get_scan(scan_id: int, tenant=Depends(current_tenant)):
+    with closing(connect()) as db:
+        row = db.execute(
+            "SELECT * FROM scans WHERE id = ? AND tenant_id = ?",
+            (scan_id, tenant["id"]),
+        ).fetchone()
+    if row is None:
+        raise HTTPException(404, "Scan not found")
+    return serialize(row)
