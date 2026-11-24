@@ -12,7 +12,6 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 DB_PATH = Path(os.getenv("DB_PATH", "scans.db"))
-# Demo credentials only. Never use hardcoded tokens in production.
 TENANTS = {
     "token-a": {"id": "A", "plan": "Free", "limit": 2},
     "token-b": {"id": "B", "plan": "Pro", "limit": 5},
