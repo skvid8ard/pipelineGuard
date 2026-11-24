@@ -77,3 +77,26 @@ def me(tenant=Depends(current_tenant)):
     with closing(connect()) as db:
         used = db.execute("SELECT COUNT(*) FROM scans WHERE tenant_id = ?", (tenant["id"],)).fetchone()[0]
     return {"tenant": tenant["id"], "plan": tenant["plan"], "limit": tenant["limit"], "used": used}
+
+@app.post("/scans", status_code=201)
+def create_scan(payload: ScanRequest, tenant=Depends(current_tenant)):
+    try:
+        document = yaml.safe_load(payload.content)
+    except yaml.YAMLError:
+        raise HTTPException(400, "Invalid YAML")
+    if not isinstance(document, dict):
+        raise HTTPException(400, "Expected a YAML mapping")
+    findings = analyze(document)
+    created_at = datetime.now(timezone.utc).isoformat()
+
+    with closing(connect()) as db, db:
+        db.execute("BEGIN IMMEDIATE")
+        used = db.execute("SELECT COUNT(*) FROM scans WHERE tenant_id = ?", (tenant["id"],)).fetchone()[0]
+        if used >= tenant["limit"]:
+            raise HTTPException(409, "PLAN_LIMIT_REACHED")
+        cursor = db.execute(
+            "INSERT INTO scans (tenant_id, filename, findings, created_at) VALUES (?, ?, ?, ?)",
+            (tenant["id"], payload.filename, json.dumps(findings), created_at),
+        )
+        scan_id = cursor.lastrowid
+    return {"id": scan_id, "tenant": tenant["id"], "filename": payload.filename, "findings": findings, "created_at": created_at}
