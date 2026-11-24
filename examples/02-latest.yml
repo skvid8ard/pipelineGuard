@@ -1,0 +1,9 @@
+stages:
+  - build
+
+image: python:latest
+
+build:
+  stage: build
+  script:
+    - python --version

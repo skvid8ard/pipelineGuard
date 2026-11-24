@@ -1,0 +1,9 @@
+stages:
+  - build
+
+image: [nginx:latest
+
+build:
+  stage: build
+  script:
+    - echo "Broken YAML"

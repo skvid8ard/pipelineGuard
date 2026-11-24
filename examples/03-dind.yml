@@ -1,0 +1,12 @@
+stages:
+  - build
+
+image: docker:24-cli
+
+services:
+  - docker:dind
+
+build:
+  stage: build
+  script:
+    - docker version

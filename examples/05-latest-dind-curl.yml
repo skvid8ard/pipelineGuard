@@ -1,0 +1,13 @@
+stages:
+  - build
+
+image: docker:latest
+
+services:
+  - docker:dind
+
+build:
+  stage: build
+  script:
+    - docker version
+    - curl -fsSL https://example.invalid/install.sh | sh
