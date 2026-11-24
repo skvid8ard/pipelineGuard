@@ -37,7 +37,7 @@ def current_tenant(
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-    tenant = TOKENS.get(credentials.credentials)
+    tenant = TENANTS.get(credentials.credentials)
 
     if tenant is None:
         raise HTTPException(
