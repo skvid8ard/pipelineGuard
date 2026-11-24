@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException, File, UploadFile
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
 DB_PATH = Path(os.getenv("DB_PATH", "scans.db"))
@@ -24,14 +25,28 @@ class ScanRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=128)
     content: str = Field(min_length=1, max_length=65536)
 
+security = HTTPBearer(auto_error=False)
 
-def current_tenant(authorization: str | None = Header(default=None)):
-    scheme, _, token = (authorization or "").partition(" ")
-    if scheme.lower() == "bearer":
-        for expected, tenant in TENANTS.items():
-            if secrets.compare_digest(token, expected):
-                return tenant
-    raise HTTPException(401, "Invalid API token", headers={"WWW-Authenticate": "Bearer"})
+def current_tenant(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
+):
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API token",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    tenant = TOKENS.get(credentials.credentials)
+
+    if tenant is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API token",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    return tenant
 
 
 def connect():
