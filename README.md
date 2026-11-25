@@ -24,9 +24,7 @@ These are deliberately hard-coded *test credentials*.
 
 ```bash
 curl -s http://localhost:8080/me -H 'Authorization: Bearer token-a'
-curl -s -X POST http://localhost:8080/scans \
-  -H 'Authorization: Bearer token-b' -H 'Content-Type: application/json' \
-  -d '{"filename":".gitlab-ci.yml","content":"image: nginx:latest"}'
+curl -i -X POST http://localhost:8080/scans -H "Authorization: Bearer token-a" -F "file=@03-dind.yml"
 curl -s http://localhost:8080/scans -H 'Authorization: Bearer token-b'
 curl -s http://localhost:8080/scans/1 -H 'Authorization: Bearer token-a'
 ```
